@@ -9,10 +9,9 @@ services:
             - AIRFLOW__CORE__FERNET_KEY=your_fernet_key
             - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
             - AIRFLOW__CORE__LOAD_EXAMPLES=False
+            - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/task/dags
         volumes:
-            - ./dags:/opt/airflow/dags
-            - ./logs:/opt/airflow/logs
-            - ./plugins:/opt/airflow/plugins
+            - ./task:/opt/airflow/task
         ports:
             - "8080:8080"
 

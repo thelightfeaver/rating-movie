@@ -1,0 +1,1 @@
+docker exec airflow sh -lc 'cat /opt/airflow/simple_auth_manager_passwords.json.generated'
