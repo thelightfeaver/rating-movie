@@ -3,7 +3,7 @@
 #################################################################################
 
 PROJECT_NAME = rating-movie
-PYTHON_VERSION = 3.13
+PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
 
 #################################################################################
@@ -14,7 +14,7 @@ PYTHON_INTERPRETER = python
 ## Install Python dependencies
 .PHONY: install
 install:
-	pip install -e .
+	$(PYTHON_INTERPRETER) -m pip install -e .
 
 ## Delete all compiled Python files
 .PHONY: clean

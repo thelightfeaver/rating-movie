@@ -25,9 +25,14 @@ dependencies = [
     "tqdm",
     "typer",
     "mlflow",
-    "scikit-learn"
+    "scikit-learn",
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "apache-airflow",
 ]
-requires-python = "~=3.13.0"
+requires-python = ">=3.10,<3.15"
 
 
 [tool.ruff]
