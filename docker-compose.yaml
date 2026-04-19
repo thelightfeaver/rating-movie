@@ -1,0 +1,35 @@
+services:
+    airflow:
+        image: apache/airflow:3.2.0
+        container_name: airflow
+        restart: always
+        environment:
+            - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+            - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@db-airflow/airflow
+            - AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+            - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+            - AIRFLOW__CORE__LOAD_EXAMPLES=False
+        volumes:
+            - ./dags:/opt/airflow/dags
+            - ./logs:/opt/airflow/logs
+            - ./plugins:/opt/airflow/plugins
+        ports:
+            - "8080:8080"
+
+        command: bash -c "airflow standalone"
+        depends_on:
+            - db-airflow
+
+    db-airflow:
+        image: postgres:18
+        container_name: db-airflow
+        restart: always
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        volumes:
+            - airflow-postgres_data:/var/lib/postgresql/data-airflow
+
+volumes:
+    airflow-postgres_data: {}
