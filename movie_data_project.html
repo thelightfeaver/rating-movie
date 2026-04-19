@@ -1,0 +1,796 @@
+
+<h2 class="sr-only">Proyecto de datos sobre popularidad de pel&iacute;culas con TMDb API, con rutas de trabajo para analista, ingeniero y cient&iacute;fico de datos.</h2>
+<style>
+  :root {
+    --panel-bg: linear-gradient(180deg, #fff8ef 0%, #ffe3cc 52%, #ffd7d2 100%);
+    --panel-border: rgba(126, 51, 32, 0.14);
+    --panel-shadow: 0 26px 80px rgba(255, 108, 55, 0.18);
+    --ink-strong: #24120d;
+    --ink-main: #53352d;
+    --ink-soft: #885f51;
+    --sand: #fff0df;
+    --sand-deep: #ffd1b8;
+    --analyst: #0097d8;
+    --engineer: #56a51c;
+    --scientist: #8a47ff;
+    --radius-xl: 28px;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --font-display: "Avenir Next", "Segoe UI", sans-serif;
+    --font-body: "IBM Plex Sans", "Avenir Next", sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .movie-project {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-xl);
+    background:
+      radial-gradient(circle at top left, rgba(255, 168, 76, 0.42), transparent 28%),
+      radial-gradient(circle at right 15%, rgba(0, 151, 216, 0.22), transparent 26%),
+      radial-gradient(circle at bottom 20%, rgba(138, 71, 255, 0.14), transparent 24%),
+      var(--panel-bg);
+    box-shadow: var(--panel-shadow);
+    font-family: var(--font-body);
+    color: var(--ink-main);
+  }
+
+  .movie-project::before,
+  .movie-project::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  .movie-project::before {
+    width: 220px;
+    height: 220px;
+    top: -90px;
+    right: -80px;
+    background: radial-gradient(circle, rgba(255, 132, 69, 0.42), transparent 70%);
+  }
+
+  .movie-project::after {
+    width: 180px;
+    height: 180px;
+    bottom: -70px;
+    left: -60px;
+    background: radial-gradient(circle, rgba(86, 165, 28, 0.28), transparent 70%);
+  }
+
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.9fr);
+    gap: 18px;
+    margin-bottom: 22px;
+    z-index: 1;
+  }
+
+  .hero-copy {
+    padding: 4px 0;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 108, 55, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.74);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff8a3d, #ff4f7a);
+  }
+
+  .hero h1 {
+    max-width: 12ch;
+    margin-bottom: 12px;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.35rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    color: var(--ink-strong);
+  }
+
+  .hero p {
+    max-width: 62ch;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink-main);
+  }
+
+  .hero-metrics {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+
+  .stat {
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 108, 55, 0.12);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 237, 214, 0.82));
+    backdrop-filter: blur(4px);
+    box-shadow: 0 16px 30px rgba(255, 120, 71, 0.12);
+  }
+
+  .stat-value {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--ink-strong);
+  }
+
+  .stat-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .tabs {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .tab {
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 108, 55, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--ink-main);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease;
+  }
+
+  .tab:hover,
+  .tab:focus-visible {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.8);
+    outline: none;
+  }
+
+  .tab.on {
+    border-color: transparent;
+    background: linear-gradient(135deg, #ff6c37, #ff3f86);
+    color: #fff9f4;
+    box-shadow: 0 12px 26px rgba(255, 84, 76, 0.28);
+  }
+
+  .section {
+    position: relative;
+    z-index: 1;
+    display: none;
+  }
+
+  .section.on {
+    display: block;
+  }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: var(--ink-strong);
+  }
+
+  .section-copy {
+    max-width: 58ch;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+
+  .grid-3,
+  .grid-2 {
+    display: grid;
+    gap: 14px;
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card {
+    position: relative;
+    overflow: hidden;
+    min-height: 100%;
+    padding: 18px;
+    border: 1px solid rgba(255, 108, 55, 0.1);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 244, 234, 0.78));
+    box-shadow: 0 16px 38px rgba(255, 120, 71, 0.11);
+  }
+
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: auto -30px -30px auto;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 134, 105, 0.26), transparent 72%);
+  }
+
+  .role-card {
+    padding-top: 20px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    margin-bottom: 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .badge-analyst {
+    background: rgba(0, 151, 216, 0.14);
+    color: var(--analyst);
+  }
+
+  .badge-engineer {
+    background: rgba(86, 165, 28, 0.14);
+    color: var(--engineer);
+  }
+
+  .badge-scientist {
+    background: rgba(138, 71, 255, 0.14);
+    color: var(--scientist);
+  }
+
+  .card h3,
+  .card h4 {
+    margin-bottom: 8px;
+    font-family: var(--font-display);
+    font-size: 1.06rem;
+    line-height: 1.2;
+    color: var(--ink-strong);
+  }
+
+  .card p,
+  .api-panel p,
+  .stack-note,
+  .timeline-copy {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-main);
+  }
+
+  .feature-list,
+  .plain-list {
+    list-style: none;
+  }
+
+  .feature-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .feature-list li,
+  .plain-list li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-main);
+  }
+
+  .feature-list li {
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 108, 55, 0.1);
+  }
+
+  .feature-list li:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-analyst { background: var(--analyst); }
+  .dot-engineer { background: var(--engineer); }
+  .dot-scientist { background: var(--scientist); }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 108, 55, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--ink-strong);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .btn:hover,
+  .btn:focus-visible {
+    transform: translateY(-1px);
+    background: #fff;
+    box-shadow: 0 14px 28px rgba(255, 108, 55, 0.18);
+    outline: none;
+  }
+
+  .btn-primary {
+    border-color: transparent;
+    background: linear-gradient(135deg, #ff7a18, #ff2d55);
+    color: #fff8f2;
+  }
+
+  .api-panel {
+    padding: 18px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(0, 151, 216, 0.16);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(0, 151, 216, 0.14), rgba(255, 255, 255, 0.82), rgba(138, 71, 255, 0.08));
+  }
+
+  .api-code {
+    display: block;
+    padding: 12px 14px;
+    margin-top: 14px;
+    border-radius: var(--radius-md);
+    background: rgba(24, 18, 13, 0.94);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #f7d9af;
+    overflow-x: auto;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .metric-card {
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 241, 228, 0.82));
+    border: 1px solid rgba(255, 108, 55, 0.1);
+    text-align: center;
+    box-shadow: 0 14px 30px rgba(255, 120, 71, 0.1);
+  }
+
+  .metric-value {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--ink-strong);
+  }
+
+  .metric-label {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  .timeline {
+    display: grid;
+    gap: 14px;
+  }
+
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid rgba(255, 108, 55, 0.1);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 243, 233, 0.8));
+  }
+
+  .timeline-num {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #00a6d6, #8a47ff);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff9f4;
+    box-shadow: 0 12px 26px rgba(104, 93, 255, 0.26);
+  }
+
+  .stack-card {
+    display: grid;
+    gap: 12px;
+  }
+
+  .stack-note {
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--sand), #ffe6da);
+  }
+
+  @media (max-width: 900px) {
+    .hero,
+    .grid-3,
+    .grid-2,
+    .metric-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .section-head {
+      flex-direction: column;
+      align-items: start;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .movie-project {
+      padding: 20px;
+      border-radius: 22px;
+    }
+
+    .hero h1 {
+      max-width: none;
+    }
+
+    .timeline-item {
+      grid-template-columns: 1fr;
+    }
+
+    .timeline-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+    }
+
+    .tab,
+    .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<section class="movie-project" aria-labelledby="movie-project-title">
+  <header class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Proyecto guiado con TMDb API</span>
+      <h1 id="movie-project-title">Pel&iacute;culas, datos y un dashboard que s&iacute; luce.</h1>
+      <p>
+        Convierte TMDb en proyecto completo de anal&iacute;tica: ingesta diaria, limpieza, exploraci&oacute;n por rol y modelo predictivo para estimar rating antes del estreno.
+      </p>
+    </div>
+
+    <div class="hero-metrics" aria-label="Resumen del proyecto">
+      <article class="stat">
+        <span class="stat-value">3 rutas</span>
+        <span class="stat-label">Analista, ingeniero, cient&iacute;fico</span>
+      </article>
+      <article class="stat">
+        <span class="stat-value">1 API real</span>
+        <span class="stat-label">TMDb, gratis y r&aacute;pida</span>
+      </article>
+      <article class="stat">
+        <span class="stat-value">De ETL a app</span>
+        <span class="stat-label">SQLite, modelo y demo final</span>
+      </article>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Secciones del proyecto">
+    <button class="tab on" type="button" data-target="roles" aria-selected="true">Roles</button>
+    <button class="tab" type="button" data-target="api" aria-selected="false">API y datos</button>
+    <button class="tab" type="button" data-target="pasos" aria-selected="false">Pasos</button>
+    <button class="tab" type="button" data-target="stack" aria-selected="false">Stack</button>
+  </nav>
+
+  <section id="sec-roles" class="section on" aria-labelledby="roles-title">
+    <div class="section-head">
+      <div>
+        <h2 id="roles-title" class="section-title">Tres formas de entrar al mismo proyecto</h2>
+        <p class="section-copy">Cada rol responde pregunta distinta, pero comparte misma fuente de datos y mismo objetivo: entender qu&eacute; hace fuerte a pel&iacute;cula popular.</p>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <article class="card role-card">
+        <span class="badge badge-analyst">Analista</span>
+        <h3>&iquest;Qu&eacute; pel&iacute;culas arrasan y por qu&eacute;?</h3>
+        <p>Explora top semanal de TMDb. Busca patrones por g&eacute;nero, idioma, mes de estreno y desempe&ntilde;o hist&oacute;rico.</p>
+        <ul class="feature-list">
+          <li><span class="dot dot-analyst"></span>An&aacute;lisis de distribuci&oacute;n de ratings por g&eacute;nero</li>
+          <li><span class="dot dot-analyst"></span>Meses con m&aacute;s estrenos exitosos</li>
+          <li><span class="dot dot-analyst"></span>Correlaci&oacute;n entre presupuesto y recaudaci&oacute;n</li>
+          <li><span class="dot dot-analyst"></span>Dashboard en Tableau o Metabase</li>
+        </ul>
+      </article>
+
+      <article class="card role-card">
+        <span class="badge badge-engineer">Ingeniero</span>
+        <h3>Pipeline diario automatizado</h3>
+        <p>Construye flujo que consulta TMDb cada d&iacute;a, limpia registros y deja dataset listo para an&aacute;lisis o modelado.</p>
+        <ul class="feature-list">
+          <li><span class="dot dot-engineer"></span>Script Python para llamar API de forma diaria</li>
+          <li><span class="dot dot-engineer"></span>Limpieza de duplicados, nulos y normalizaci&oacute;n</li>
+          <li><span class="dot dot-engineer"></span>Persistencia en SQLite local o PostgreSQL</li>
+          <li><span class="dot dot-engineer"></span>Automatizaci&oacute;n con cron o Airflow b&aacute;sico</li>
+        </ul>
+      </article>
+
+      <article class="card role-card">
+        <span class="badge badge-scientist">Cient&iacute;fico</span>
+        <h3>Predecir rating antes del estreno</h3>
+        <p>Entrena modelo de regresi&oacute;n con datos disponibles antes del lanzamiento para estimar recepci&oacute;n esperada.</p>
+        <ul class="feature-list">
+          <li><span class="dot dot-scientist"></span>Features: g&eacute;nero, presupuesto, director y mes</li>
+          <li><span class="dot dot-scientist"></span>Modelos base: Random Forest o XGBoost</li>
+          <li><span class="dot dot-scientist"></span>Evaluaci&oacute;n con MAE y $R^2$</li>
+          <li><span class="dot dot-scientist"></span>Mini app en Streamlit para demo</li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="button" onclick="sendPrompt('Dame el c&oacute;digo Python para conectarme a la API de TMDb y guardar los datos en SQLite')">C&oacute;digo del pipeline SQLite</button>
+      <button class="btn" type="button" onclick="sendPrompt('Dame el c&oacute;digo del modelo Random Forest para predecir el rating de pel&iacute;culas con TMDb')">C&oacute;digo del modelo</button>
+    </div>
+  </section>
+
+  <section id="sec-api" class="section" aria-labelledby="api-title">
+    <div class="section-head">
+      <div>
+        <h2 id="api-title" class="section-title">API real, barata y suficiente para proyecto serio</h2>
+        <p class="section-copy">TMDb da cat&aacute;logo amplio, buen detalle y curva de entrada baja. Sirve para practicar extracci&oacute;n, limpieza, an&aacute;lisis y predicci&oacute;n sin inventar dataset.</p>
+      </div>
+    </div>
+
+    <div class="api-panel">
+      <h3>The Movie Database (TMDb)</h3>
+      <p>API REST con m&aacute;s de 900 mil pel&iacute;culas, ratings, presupuesto, recaudaci&oacute;n, g&eacute;neros, cr&eacute;ditos y fechas de estreno. Solo hace falta cuenta y API key.</p>
+      <code class="api-code">api.themoviedb.org/3/movie/popular?api_key=TU_KEY&amp;language=es</code>
+    </div>
+
+    <div class="grid-2">
+      <article class="card">
+        <h3>Endpoints clave</h3>
+        <ul class="feature-list">
+          <li><span class="dot dot-analyst"></span>/movie/popular para ranking semanal</li>
+          <li><span class="dot dot-analyst"></span>/movie/top_rated para comparaci&oacute;n</li>
+          <li><span class="dot dot-analyst"></span>/movie/{id} para detalle y presupuesto</li>
+          <li><span class="dot dot-analyst"></span>/genre/movie/list para cat&aacute;logo de g&eacute;neros</li>
+          <li><span class="dot dot-analyst"></span>/discover/movie para filtros avanzados</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h3>Campos &uacute;tiles por pel&iacute;cula</h3>
+        <ul class="feature-list">
+          <li><span class="dot dot-engineer"></span>T&iacute;tulo, idioma y fecha de estreno</li>
+          <li><span class="dot dot-engineer"></span>Vote average y total de votos</li>
+          <li><span class="dot dot-engineer"></span>Presupuesto y recaudaci&oacute;n en USD</li>
+          <li><span class="dot dot-engineer"></span>G&eacute;neros para agrupaci&oacute;n y features</li>
+          <li><span class="dot dot-engineer"></span>Director y actores principales</li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="metric-grid" aria-label="M&eacute;tricas de la API">
+      <article class="metric-card">
+        <div class="metric-value">+900k</div>
+        <div class="metric-label">pel&iacute;culas en base</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-value">Gratis</div>
+        <div class="metric-label">hasta 50 req/seg</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-value">Actual</div>
+        <div class="metric-label">datos vivos para hoy</div>
+      </article>
+    </div>
+  </section>
+
+  <section id="sec-pasos" class="section" aria-labelledby="pasos-title">
+    <div class="section-head">
+      <div>
+        <h2 id="pasos-title" class="section-title">Ruta de ejecuci&oacute;n, sin humo</h2>
+        <p class="section-copy">Orden correcto: acceso, ingesta, an&aacute;lisis, modelo y entrega. As&iacute; proyecto avanza sin atascarse en etapa equivocada.</p>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <article class="timeline-item">
+        <div class="timeline-num">01</div>
+        <div>
+          <h3>Reg&iacute;strate en TMDb y genera API key</h3>
+          <p class="timeline-copy">Entra a themoviedb.org, crea cuenta y genera llave en Settings &rarr; API. Paso r&aacute;pido, pero bloquea todo si no queda listo.</p>
+        </div>
+      </article>
+
+      <article class="timeline-item">
+        <div class="timeline-num">02</div>
+        <div>
+          <h3>Escribe pipeline de ingesta</h3>
+          <p class="timeline-copy">Consulta /movie/popular y /movie/{id}, limpia respuesta y guarda tablas como movies y genres en SQLite.</p>
+        </div>
+      </article>
+
+      <article class="timeline-item">
+        <div class="timeline-num">03</div>
+        <div>
+          <h3>Explora distribuci&oacute;n y patrones</h3>
+          <p class="timeline-copy">Usa Pandas y plots para responder preguntas concretas: g&eacute;neros fuertes, meses con blockbusters y se&ntilde;ales de &eacute;xito.</p>
+        </div>
+      </article>
+
+      <article class="timeline-item">
+        <div class="timeline-num">04</div>
+        <div>
+          <h3>Entrena modelo predictivo</h3>
+          <p class="timeline-copy">Target: vote_average. Features iniciales: budget, genre_id, release_month y runtime. Eval&uacute;a con MAE antes de iterar.</p>
+        </div>
+      </article>
+
+      <article class="timeline-item">
+        <div class="timeline-num">05</div>
+        <div>
+          <h3>Publica demo con Streamlit</h3>
+          <p class="timeline-copy">Cierra proyecto con mini app donde usuario carga datos de pel&iacute;cula futura y recibe predicci&oacute;n de rating.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="button" onclick="sendPrompt('Dame el plan completo semana a semana para este proyecto de pel&iacute;culas con TMDb')">Plan semana a semana</button>
+    </div>
+  </section>
+
+  <section id="sec-stack" class="section" aria-labelledby="stack-title">
+    <div class="section-head">
+      <div>
+        <h2 id="stack-title" class="section-title">Stack recomendado por rol</h2>
+        <p class="section-copy">Nada ex&oacute;tico. Herramientas est&aacute;ndar, r&aacute;pidas de explicar y suficientes para producir pipeline, an&aacute;lisis y demo final.</p>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <article class="card stack-card">
+        <span class="badge badge-engineer">Ingeniero</span>
+        <ul class="plain-list">
+          <li><span class="dot dot-engineer"></span>Python + requests para ingesta</li>
+          <li><span class="dot dot-engineer"></span>SQLite o PostgreSQL para persistencia</li>
+          <li><span class="dot dot-engineer"></span>Pandas para limpieza</li>
+          <li><span class="dot dot-engineer"></span>cron o Airflow b&aacute;sico para scheduling</li>
+        </ul>
+        <p class="stack-note">Ideal si quieres mostrar ETL completo y disciplina de datos reproducible.</p>
+      </article>
+
+      <article class="card stack-card">
+        <span class="badge badge-analyst">Analista</span>
+        <ul class="plain-list">
+          <li><span class="dot dot-analyst"></span>Pandas + Matplotlib</li>
+          <li><span class="dot dot-analyst"></span>Seaborn para correlaciones</li>
+          <li><span class="dot dot-analyst"></span>Metabase o Tableau</li>
+          <li><span class="dot dot-analyst"></span>SQL para consultas y m&eacute;tricas</li>
+        </ul>
+        <p class="stack-note">Buena mezcla para contar historia con datos sin meter complejidad de m&aacute;s.</p>
+      </article>
+
+      <article class="card stack-card">
+        <span class="badge badge-scientist">Cient&iacute;fico</span>
+        <ul class="plain-list">
+          <li><span class="dot dot-scientist"></span>Scikit-learn para baseline robusto</li>
+          <li><span class="dot dot-scientist"></span>Random Forest o XGBoost</li>
+          <li><span class="dot dot-scientist"></span>Streamlit para demo final</li>
+          <li><span class="dot dot-scientist"></span>Joblib para guardar modelo</li>
+        </ul>
+        <p class="stack-note">Suficiente para pasar de feature engineering a producto demostrable en poco tiempo.</p>
+      </article>
+    </div>
+  </section>
+</section>
+
+<script>
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const sections = Array.from(document.querySelectorAll('.section'));
+
+  function activateTab(target) {
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.target === target;
+      tab.classList.toggle('on', isActive);
+      tab.setAttribute('aria-selected', String(isActive));
+    });
+
+    sections.forEach((section) => {
+      section.classList.toggle('on', section.id === `sec-${target}`);
+    });
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => activateTab(tab.dataset.target));
+  });
+</script>

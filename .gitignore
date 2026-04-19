@@ -195,3 +195,5 @@ model/
 model.pkl
 model.joblib
 model.h5
+
+# data
