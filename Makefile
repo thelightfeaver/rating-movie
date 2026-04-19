@@ -38,19 +38,19 @@ all: dataset train predict plot
 
 .PHONY: dataset
 dataset:
-	python -m src/dataset.py
+	python src/dataset.py
 
 .PHONY: train
 train:
-	python -m src/modeling/train.py
+	python src/modeling/train.py
 
 .PHONY: predict
 predict:
-	python -m src/modeling/predict.py
+	python src/modeling/predict.py
 
 .PHONY: plot
 plot:
-	python -m src/plot.py
+	python src/plots.py
 
 
 ## Set up Python interpreter environment

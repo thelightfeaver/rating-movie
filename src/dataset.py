@@ -5,7 +5,7 @@ from loguru import logger
 from tqdm import tqdm
 import typer
 
-from src.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from src.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, API, TMDB_API_TOKEN
 
 app = typer.Typer()
 
@@ -17,7 +17,8 @@ def main(
     output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
     # ----------------------------------------------
 ):
-    pass
+    print(f"Using API: {API}")
+    print(f"Using TMDB API Token: {TMDB_API_TOKEN}")
 
 
 if __name__ == "__main__":
