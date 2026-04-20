@@ -1,5 +1,6 @@
 import os
 
+from datetime import datetime
 import pandas as pd
 import requests
 from airflow import DAG
@@ -42,6 +43,7 @@ def recollect_data():
 
 with DAG(
     dag_id="dataset",
+    start_date= datetime(2024, 6, 1),
     catchup=False,
     tags=["task"]
 ) as dag:
