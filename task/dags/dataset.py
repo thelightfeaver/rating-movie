@@ -4,7 +4,8 @@ from datetime import datetime
 import pandas as pd
 import requests
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
+
 from dotenv import load_dotenv
 
 load_dotenv()
