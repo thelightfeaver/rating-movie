@@ -22,7 +22,7 @@ MODELS_DIR = PROJ_ROOT / "models"
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
-TMDB_API_TOKEN = os.environ.get('TMDB_API_TOKEN')
+TMDB_API_TOKEN = os.environ.get("TMDB_API_TOKEN")
 API = os.environ.get("API")
 
 try:

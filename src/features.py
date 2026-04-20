@@ -1,8 +1,8 @@
 from pathlib import Path
 
+import typer
 from loguru import logger
 from tqdm import tqdm
-import typer
 
 from src.config import PROCESSED_DATA_DIR
 

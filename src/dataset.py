@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import requests
+import typer
 from loguru import logger
 from tqdm import tqdm
-import typer
 
-from src.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, API, TMDB_API_TOKEN
+from src.config import API, PROCESSED_DATA_DIR, RAW_DATA_DIR, TMDB_API_TOKEN
 
 app = typer.Typer()
 
