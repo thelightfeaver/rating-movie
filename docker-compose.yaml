@@ -37,5 +37,36 @@ services:
             retries: 3
             start_period: 10s
 
+    duck-ui:
+        image: ghcr.io/caioricciuti/duck-ui:latest
+        container_name: duck-ui
+        ports:
+            - "5522:5522"
+        environment:
+            - DUCK_UI_ALLOW_UNSIGNED_EXTENSIONS=true
+
+    minio:
+        image: minio/minio
+        container_name: minio
+        ports:
+            - "8000:9000"
+            - "8001:8001"
+        environment:
+            - MINIO_ROOT_USER=minio
+            - MINIO_ROOT_PASSWORD=miniopass
+            - MINIO_STORAGE_USE_HTTPS=False
+        command: server /data --console-address ":8001"
+        volumes:
+            - datalake:/data
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8000/minio/health/live"]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        restart: always
+
+
 volumes:
     airflow-postgres_data: {}
+    datalake: {}
