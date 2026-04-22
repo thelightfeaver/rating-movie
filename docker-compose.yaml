@@ -17,7 +17,8 @@ services:
             - "8080:8080"
         command: bash -c "airflow standalone"
         depends_on:
-            - db-airflow
+            db-airflow:
+                condition: service_healthy
 
     db-airflow:
         image: postgres:18-alpine3.23
@@ -29,6 +30,12 @@ services:
             - POSTGRES_DB=airflow
         volumes:
             - airflow-postgres_data:/var/lib/postgresql/data-airflow
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U airflow -d airflow -h localhost"]
+            interval: 5m
+            timeout: 30s
+            retries: 3
+            start_period: 10s
 
 volumes:
     airflow-postgres_data: {}
