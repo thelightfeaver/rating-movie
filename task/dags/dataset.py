@@ -156,7 +156,6 @@ s3.meta.client.put_bucket_versioning(
 with DAG(
     dag_id="dataset",
     start_date= datetime(2026, 4, 22, 6, 0, 0),
-    schedule_interval="@daily",
     catchup=False,
     tags=["task"]
 ) as dag:
