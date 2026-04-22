@@ -90,8 +90,6 @@ def dataframe_to_csv(df: pd.DataFrame, filename: str) -> None:
 def _save_data(df: pd.DataFrame, filename: str) -> None:
     s3 = _get_client_s3()
 
-    _create_bucket_s3(s3, S3_BUCKET_NAME)
-
     bucket = s3.Bucket(S3_BUCKET_NAME)
     bucket.put_object(Key=filename, Body=df.to_parquet(index=False), ContentType="application/octet-stream")
 
@@ -105,7 +103,7 @@ def recollect_data(**context) -> pd.DataFrame:
     movies = []
 
     # Obtener todas las id de las películas en las páginas restantes
-    for page in range(2, total_pages + 1):
+    for page in range(2, total_pages -43):
         try:
             id_movies_page, _ = get_movies_id(page)
             id_movies = pd.concat([id_movies, id_movies_page], ignore_index=True)
@@ -148,6 +146,7 @@ def feature_data(**context) -> None:
 
 # Versionar el bucket de S3 para mantener un historial de cambios en los datos
 s3 = _get_client_s3()
+_create_bucket_s3(s3, S3_BUCKET_NAME)
 s3.meta.client.put_bucket_versioning(
     Bucket=S3_BUCKET_NAME,
     VersioningConfiguration={"Status": "Enabled"}
