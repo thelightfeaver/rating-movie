@@ -146,6 +146,7 @@ def feature_data(**context) -> None:
     print(f"Total rows featured: {row_count}")
     print("Data featured and saved successfully.")
 
+# Versionar el bucket de S3 para mantener un historial de cambios en los datos
 s3 = _get_client_s3()
 s3.meta.client.put_bucket_versioning(
     Bucket=S3_BUCKET_NAME,
