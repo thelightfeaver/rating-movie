@@ -147,7 +147,7 @@ def feature_data(**context) -> None:
     print("Data featured and saved successfully.")
 
 s3 = _get_client_s3()
-s3.put_bucket_versioning(
+s3.meta.client.put_bucket_versioning(
     Bucket=S3_BUCKET_NAME,
     VersioningConfiguration={"Status": "Enabled"}
 )
