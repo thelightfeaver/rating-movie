@@ -103,7 +103,7 @@ def recollect_data(**context) -> pd.DataFrame:
     movies = []
 
     # Obtener todas las id de las películas en las páginas restantes
-    for page in range(2, total_pages -43):
+    for page in range(2, total_pages + 1):
         try:
             id_movies_page, _ = get_movies_id(page)
             id_movies = pd.concat([id_movies, id_movies_page], ignore_index=True)
