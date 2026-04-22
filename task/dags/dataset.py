@@ -98,7 +98,7 @@ def _read_data(filename: str) -> pd.DataFrame:
     obj = s3.Object(S3_BUCKET_NAME, filename)
     return pd.read_parquet(BytesIO(obj.get()["Body"].read()))
 
-def recollect_data() -> pd.DataFrame:
+def recollect_data(**context) -> pd.DataFrame:
     id_movies, total_pages = get_movies_id()
     movies = []
     # Obtener todas las id de las películas en las páginas restantes
@@ -123,16 +123,24 @@ def recollect_data() -> pd.DataFrame:
 
     df = pd.concat(movies, ignore_index=True)
     _save_data(df, "raw_data.parquet")
+    row_count = len(df)
+    context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
+    print(f"Total rows collected: {row_count}")
     print("Data recollected and saved successfully.")
 
-def clean_data() -> None:
+def clean_data(**context) -> None:
     df = _read_data("raw_data.parquet")
     _save_data(df, "cleaned_data.parquet")
-    print("Data cleaned and saved successfully.")
+    row_count = len(df)
+    context["ti"].xcom_push(key="row", value=f"Total rows cleaned: {row_count}")
+    print(f"Total rows cleaned: {row_count}")
 
-def feature_data() -> None:
+def feature_data(**context) -> None:
     df = _read_data("cleaned_data.parquet")
     _save_data(df, "featured_data.parquet")
+    row_count = len(df)
+    context["ti"].xcom_push(key="row", value=f"Total rows featured: {row_count}")
+    print(f"Total rows featured: {row_count}")
     print("Data featured and saved successfully.")
 
 with DAG(
