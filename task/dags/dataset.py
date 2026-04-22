@@ -17,6 +17,8 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
+
+
 def _get_client_s3():
     return boto3.resource(
         "s3",
@@ -101,7 +103,7 @@ def _read_data(filename: str) -> pd.DataFrame:
 def recollect_data(**context) -> pd.DataFrame:
     id_movies, total_pages = get_movies_id()
     movies = []
-    
+
     # Obtener todas las id de las películas en las páginas restantes
     for page in range(2, total_pages + 1):
         try:
@@ -143,6 +145,12 @@ def feature_data(**context) -> None:
     context["ti"].xcom_push(key="row", value=f"Total rows featured: {row_count}")
     print(f"Total rows featured: {row_count}")
     print("Data featured and saved successfully.")
+
+s3 = _get_client_s3()
+s3.put_bucket_versioning(
+    Bucket=S3_BUCKET_NAME,
+    VersioningConfiguration={"Status": "Enabled"}
+)
 
 with DAG(
     dag_id="dataset",
