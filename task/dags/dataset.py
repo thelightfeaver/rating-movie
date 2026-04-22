@@ -93,6 +93,11 @@ def _save_data(df: pd.DataFrame, filename: str) -> None:
     bucket = s3.Bucket(S3_BUCKET_NAME)
     bucket.put_object(Key=filename, Body=df.to_parquet(index=False), ContentType="application/octet-stream")
 
+def _read_data(filename: str) -> pd.DataFrame:
+    s3 = _get_client_s3()
+    obj = s3.Object(S3_BUCKET_NAME, filename)
+    return pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+
 def recollect_data() -> pd.DataFrame:
     id_movies, total_pages = get_movies_id()
     movies = []
@@ -121,17 +126,12 @@ def recollect_data() -> pd.DataFrame:
     print("Data recollected and saved successfully.")
 
 def clean_data() -> None:
-    s3 = _get_client_s3()
-
-    obj = s3.Object(S3_BUCKET_NAME, "raw_data.parquet")
-    df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+    df = _read_data("raw_data.parquet")
     _save_data(df, "cleaned_data.parquet")
     print("Data cleaned and saved successfully.")
 
 def feature_data() -> None:
-    s3 = _get_client_s3()
-    obj = s3.Object(S3_BUCKET_NAME, "cleaned_data.parquet")
-    df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+    df = _read_data("cleaned_data.parquet")
     _save_data(df, "featured_data.parquet")
     print("Data featured and saved successfully.")
 
