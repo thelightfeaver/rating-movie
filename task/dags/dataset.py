@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from io import BytesIO
 
 import boto3
 import pandas as pd
@@ -16,6 +17,18 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
+def _get_client_s3():
+    return boto3.resource(
+        "s3",
+        endpoint_url=S3_ENDPOINT_URL,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    )
+
+def _create_bucket_s3(s3, bucket_name: str) -> None:
+    if not s3.Bucket(bucket_name) in s3.buckets.all():
+        s3.create_bucket(Bucket=bucket_name)
+
 def _base_url(endpoint: str) -> str:
     return f"{API}{endpoint}"
 
@@ -24,7 +37,6 @@ def _get_headers() -> dict:
 
 def _transform_data(data: dict) -> pd.DataFrame:
     return pd.DataFrame({"id": [item["id"] for item in data.get("results", [])]})
-
 
 def _transform_data_movie(data: dict) -> pd.DataFrame:
     return pd.DataFrame(
@@ -51,6 +63,7 @@ def get_movies_id(page:int = 1) -> pd.DataFrame:
     url = _base_url(f"movie/changes?page={page}")
     headers = _get_headers()
     response = requests.get(url, headers=headers)
+    response.encoding = "utf-8"
 
     response.raise_for_status()
     data = response.json()
@@ -62,6 +75,7 @@ def get_movie_by_id(movie_id: str) -> pd.DataFrame:
     url = _base_url(f"movie/{movie_id}?language=en-US")
     headers = _get_headers()
     response = requests.get(url, headers=headers)
+    response.encoding = "utf-8"
     response.raise_for_status()
     data = response.json()
     out_data = _transform_data_movie(data)
@@ -71,11 +85,19 @@ def get_movie_by_id(movie_id: str) -> pd.DataFrame:
 def dataframe_to_csv(df: pd.DataFrame, filename: str) -> None:
     df.to_csv(filename, index=False)
 
+def _save_data(df: pd.DataFrame, filename: str) -> None:
+    s3 = _get_client_s3()
+
+    _create_bucket_s3(s3, S3_BUCKET_NAME)
+
+    bucket = s3.Bucket(S3_BUCKET_NAME)
+    bucket.put_object(Key=filename, Body=df.to_parquet(index=False), ContentType="application/octet-stream")
+
 def recollect_data() -> pd.DataFrame:
     id_movies, total_pages = get_movies_id()
     movies = []
     # Obtener todas las id de las películas en las páginas restantes
-    for page in range(2, total_pages):
+    for page in range(2, total_pages -42):
         try:
             id_movies_page, _ = get_movies_id(page)
             id_movies = pd.concat([id_movies, id_movies_page], ignore_index=True)
@@ -94,20 +116,24 @@ def recollect_data() -> pd.DataFrame:
     if not movies:
         return pd.DataFrame()
 
-    return pd.concat(movies, ignore_index=True)
+    df = pd.concat(movies, ignore_index=True)
+    _save_data(df, "raw_data.parquet")
+    print("Data recollected and saved successfully.")
 
-def save_data(df: pd.DataFrame, filename: str) -> None:
-    s3 = boto3.resource(
-        "s3",
-        endpoint_url=S3_ENDPOINT_URL,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    )
+def clean_data() -> None:
+    s3 = _get_client_s3()
 
-    if not s3.Bucket(S3_BUCKET_NAME) in s3.buckets.all():
-        s3.create_bucket(Bucket=S3_BUCKET_NAME)
-    bucket = s3.Bucket(S3_BUCKET_NAME)
-    bucket.put_object(Key=filename, Body=df.to_csv(index=False))
+    obj = s3.Object(S3_BUCKET_NAME, "raw_data.parquet")
+    df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+    _save_data(df, "cleaned_data.parquet")
+    print("Data cleaned and saved successfully.")
+
+def feature_data() -> None:
+    s3 = _get_client_s3()
+    obj = s3.Object(S3_BUCKET_NAME, "cleaned_data.parquet")
+    df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+    _save_data(df, "featured_data.parquet")
+    print("Data featured and saved successfully.")
 
 with DAG(
     dag_id="dataset",
@@ -117,18 +143,20 @@ with DAG(
 ) as dag:
 
     extract_data = PythonOperator(
-        task_id="recollect_data",
+        task_id="extract",
         python_callable=recollect_data
     )
 
-    save_data = PythonOperator(
-        task_id="save_data",
-        python_callable=save_data,
-        op_kwargs={
-            "df": extract_data.output,
-            "filename": "raw_data.csv"
-        }
+    clean_data = PythonOperator(
+        task_id="clean",
+        python_callable=clean_data,
     )
 
-    extract_data >> save_data
+    feature_data = PythonOperator(
+        task_id="feature",
+        python_callable=feature_data,
+    )
+
+    extract_data >> clean_data >> feature_data
+
 
