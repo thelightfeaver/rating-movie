@@ -1,9 +1,9 @@
+import gzip
+import json
 import os
 from datetime import datetime
 from io import BytesIO
 
-import gzip
-import json
 import boto3
 import pandas as pd
 import requests
