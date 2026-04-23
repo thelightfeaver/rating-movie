@@ -64,7 +64,7 @@ def _transform_data_movie(data: dict) -> pd.DataFrame:
     )
 
 def get_movies_id(page:int = 1) -> pd.DataFrame:
-    url = _base_url(f"movie/changes?page={page}")
+    url = _base_url(f"movie/popular?language=en-US&page={page}")
     headers = _get_headers()
     response = requests.get(url, headers=headers)
     response.encoding = "utf-8"
@@ -105,7 +105,8 @@ def recollect_data(**context) -> pd.DataFrame:
     movies = []
 
     # Obtener todas las id de las películas en las páginas restantes
-    for page in range(2, total_pages + 1):
+    for page in range(2, 500+1):
+        print(f"Fetching movie IDs for page {page} of {total_pages}...")
         try:
             id_movies_page, _ = get_movies_id(page)
             id_movies = pd.concat([id_movies, id_movies_page], ignore_index=True)
@@ -115,6 +116,7 @@ def recollect_data(**context) -> pd.DataFrame:
 
     # Obtener los detalles de cada película utilizando las ID
     for movie_id in id_movies["id"].to_list():
+        print(f"Fetching details for movie with ID {movie_id}...")
         try:
             movies.append(get_movie_by_id(movie_id))
         except requests.HTTPError as e:
