@@ -145,21 +145,27 @@ def recollect_data(**context) -> pd.DataFrame:
 
 def clean_data(**context) -> None:
     df = _read_data("raw_data.parquet")
-    _save_data(df, "cleaned_data.parquet")
     row_count = len(df)
     # Eliminar duplicada y datos inrevelevantes
     df.drop_duplicates(inplace=True)
     df = df[(df["vote_count"] > 0) & (df["vote_average"] > 0) & (df["popularity"] > 0) & (df["runtime"] > 0) & (df["revenue"] > 0) & (df["budget"] > 0)]
     df.drop(columns=["id"], inplace=True)
     for col in ["title", "overview", "original_language", "genres", "production_companies"]:
-        df[col] = df[col].str.lower().str.strip()
+        df[col] = df[col].str.lower()
     _save_data(df, "cleaned_data.parquet")
     context["ti"].xcom_push(key="row", value=f"Total rows cleaned: {row_count}")
     print(f"Total rows cleaned: {row_count}")
 
 def feature_data(**context) -> None:
     df = _read_data("cleaned_data.parquet")
-    df = df[["genres","budget", "popularity", "revenue", "runtime", "vote_average", "vote_count"]]
+    df = df[
+        ["genres",
+         "budget",
+         "popularity",
+         "revenue",
+         "runtime",
+         "vote_average",
+         "vote_count"]]
     _save_data(df, "featured_data.parquet")
     row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows featured: {row_count}")
