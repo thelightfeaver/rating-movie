@@ -50,6 +50,8 @@ def _transform_data_movie(data: dict) -> pd.DataFrame:
                 "release_date": data["release_date"],
                 "vote_average": data["vote_average"],
                 "vote_count": data["vote_count"],
+                "popularity": data["popularity"],
+                "runtime": data["runtime"],
                 "revenue": data["revenue"],
                 "original_language": data["original_language"],
                 "genres": "| ".join(out["name"] for out in data["genres"]),
