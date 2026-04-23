@@ -1,6 +1,8 @@
 import gzip
 import json
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from io import BytesIO
 
@@ -119,24 +121,40 @@ def _read_data(filename: str) -> pd.DataFrame:
     return pd.read_parquet(BytesIO(obj.get()["Body"].read()))
 
 def recollect_data(**context) -> pd.DataFrame:
+    # Limitar a 100,000 IDs para evitar problemas de memoria y tiempo de ejecución
     id_movies = get_movies_id()
-    print(f"Total movie IDs fetched: {len(id_movies)}")
+    id_movies = id_movies[["id"]]
+    id_movies = id_movies.iloc[:100000]
     counter = 0
     counter_error = 0
     len_id_movies = len(id_movies)
     movies = []
 
-    # Obtener los detalles de cada película utilizando las ID
-    for movie_id in id_movies["id"].to_list():
-        counter += 1
-        print(f"Fetching details for movie with ID {movie_id}:({counter}/{len_id_movies})")
-        try:
-            movies.append(get_movie_by_id(movie_id))
-        except requests.HTTPError as e:
-            print(f"Error fetching movie with ID {movie_id}: {e}")
-            counter_error += 1
-            continue
+    print(f"Total movie IDs fetched: {len(id_movies)}")
 
+    # Usar ThreadPoolExecutor para hacer solicitudes concurrentes y limitar la tasa a 10 por segundo
+    start_time = time.time()
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        futures = {executor.submit(get_movie_by_id, movie_id): movie_id for movie_id in id_movies["id"].to_list()}
+
+        for i, future in enumerate(as_completed(futures), start=1):
+            # Obtenemos el resultado de la solicitud
+            result = future.result()
+
+            # validar que el resultado no sea None antes de agregarlo a la lista de películas
+            if result is not None:
+                movies.append(result)
+
+            # Limitar la tasa de solicitudes a 10 por segundo
+            if i % 40 == 0:
+                elapsed = time.time() - start_time
+                if elapsed < 1:
+                    time.sleep(1 - elapsed)
+                start_time = time.time()
+
+            print(f"Procesados: {i}/{len_id_movies}")
+
+    row_count = len(movies)
     if not movies:
         return pd.DataFrame()
 
@@ -147,7 +165,6 @@ def recollect_data(**context) -> pd.DataFrame:
     df = pd.concat(movies, ignore_index=True)
 
     _save_data(df, "raw_data.parquet")
-    row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
     print(f"Total rows collected: {row_count}")
     print(f"Total errors encountered: {counter_error}")
