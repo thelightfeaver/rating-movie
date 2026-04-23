@@ -154,16 +154,22 @@ def recollect_data(**context) -> pd.DataFrame:
 
             print(f"Procesados: {i}/{len_id_movies}")
 
+    # Contar el número de filas en el DataFrame resultante
     row_count = len(movies)
+
+    # Si no se han recolectado películas, retornar un DataFrame vacío
     if not movies:
         return pd.DataFrame()
 
+    # Si ya existe un archivo Parquet con datos anteriores, cargarlo y concatenarlo con los nuevos datos
     if _exist_file("raw_data.parquet"):
         existing_df = _read_data("raw_data.parquet")
         movies.append(existing_df)
 
+    # Concatenar todos los DataFrames de películas en uno solo
     df = pd.concat(movies, ignore_index=True)
 
+    # Guardar el DataFrame en S3 como un archivo Parquet
     _save_data(df, "raw_data.parquet")
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
     print(f"Total rows collected: {row_count}")
@@ -173,19 +179,25 @@ def recollect_data(**context) -> pd.DataFrame:
 
 def clean_data(**context) -> None:
     df = _read_data("raw_data.parquet")
-    row_count = len(df)
+
     # Eliminar duplicada y datos inrevelevantes
     df.drop_duplicates(inplace=True)
     df = df[(df["vote_count"] > 0) & (df["vote_average"] > 0) & (df["popularity"] > 0) & (df["runtime"] > 0) & (df["revenue"] > 0) & (df["budget"] > 0)]
     df.drop(columns=["id"], inplace=True)
     for col in ["title", "overview", "original_language", "genres", "production_companies"]:
         df[col] = df[col].str.lower()
+
+    # Guardar el DataFrame limpio en S3 como un archivo Parquet
     _save_data(df, "cleaned_data.parquet")
+    row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows cleaned: {row_count}")
     print(f"Total rows cleaned: {row_count}")
 
 def feature_data(**context) -> None:
+    # Cargar el DataFrame limpio desde S3
     df = _read_data("cleaned_data.parquet")
+
+    # Seleccionar solo las columnas relevantes para el análisis y modelado
     df = df[
         ["genres",
          "budget",
@@ -194,6 +206,8 @@ def feature_data(**context) -> None:
          "runtime",
          "vote_average",
          "vote_count"]]
+
+    # Guardar el DataFrame con las características seleccionadas en S3 como un archivo Parquet
     _save_data(df, "featured_data.parquet")
     row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows featured: {row_count}")
@@ -215,8 +229,8 @@ def validation_feature_data() -> None:
     df = _read_data("featured_data.parquet")
     expected_columns = {"genres", "budget", "popularity", "revenue", "runtime", "vote_average", "vote_count"}
     assert set(df.columns) == expected_columns, f"Featured data does not have the expected columns. Expected: {expected_columns}, Found: {set(df.columns)}"
-
     print("Featured data validation passed.")
+
 # Versionar el bucket de S3 para mantener un historial de cambios en los datos
 s3 = _get_client_s3()
 _create_bucket_s3(s3, S3_BUCKET_NAME)
