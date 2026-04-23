@@ -66,7 +66,55 @@ services:
             start_period: 30s
         restart: always
 
+    superset:
+        image: apache/superset:latest
+        container_name: superset_app
+        restart: unless-stopped
+        depends_on:
+            db-airflow:
+                condition: service_healthy
+            superset_redis:
+                condition: service_started
+        environment:
+            SUPERSET_SECRET_KEY: "super-secret-key-change-me"
+            DATABASE_DB: airflow
+            DATABASE_HOST: db-airflow
+            DATABASE_PASSWORD: airflow
+            DATABASE_USER: airflow
+            DATABASE_PORT: 5432
+            REDIS_HOST: superset_redis
+            REDIS_PORT: 6379
+            SUPERSET_LOAD_EXAMPLES: "no"
+        ports:
+            - "8088:8088"
+        volumes:
+            - superset_home:/app/superset_home
+        command: >
+            /bin/bash -c "
+            superset db upgrade &&
+            superset fab create-admin \
+                --username admin \
+                --firstname Superset \
+                --lastname Admin \
+                --email admin@superset.com \
+                --password admin &&
+            superset init &&
+            superset run -h 0.0.0.0 -p 8088
+            "
+
+
+    superset_redis:
+        image: redis:7
+        container_name: superset_redis
+        restart: unless-stopped
+        volumes:
+        - superset_redis_data:/data
+
+
+
 
 volumes:
+    superset_redis_data:
+    superset_home:
     airflow-postgres_data: {}
     datalake: {}
