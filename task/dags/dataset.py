@@ -34,6 +34,11 @@ def _create_bucket_s3(s3, bucket_name: str) -> None:
 def _base_url(endpoint: str) -> str:
     return f"{API}{endpoint}"
 
+def _exist_file(filename: str) -> bool:
+    s3 = _get_client_s3()
+    bucket = s3.Bucket(S3_BUCKET_NAME)
+    return any(obj.key == filename for obj in bucket.objects.all())
+
 def _get_headers() -> dict:
     return {"Authorization": f"Bearer {TMDB_API_TOKEN}"}
 
@@ -105,7 +110,7 @@ def recollect_data(**context) -> pd.DataFrame:
     movies = []
 
     # Obtener todas las id de las películas en las páginas restantes
-    for page in range(2, 500+1):
+    for page in range(2, 3):
         print(f"Fetching movie IDs for page {page} of {total_pages}...")
         try:
             id_movies_page, _ = get_movies_id(page)
@@ -126,7 +131,12 @@ def recollect_data(**context) -> pd.DataFrame:
     if not movies:
         return pd.DataFrame()
 
+    if _exist_file("raw_data.parquet"):
+        existing_df = _read_data("raw_data.parquet")
+        movies.append(existing_df)
+
     df = pd.concat(movies, ignore_index=True)
+
     _save_data(df, "raw_data.parquet")
     row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
@@ -137,11 +147,19 @@ def clean_data(**context) -> None:
     df = _read_data("raw_data.parquet")
     _save_data(df, "cleaned_data.parquet")
     row_count = len(df)
+    # Eliminar duplicada y datos inrevelevantes
+    df.drop_duplicates(inplace=True)
+    df = df[(df["vote_count"] > 0) & (df["vote_average"] > 0) & (df["popularity"] > 0) & (df["runtime"] > 0) & (df["revenue"] > 0) & (df["budget"] > 0)]
+    df.drop(columns=["id"], inplace=True)
+    for col in ["title", "overview", "original_language", "genres", "production_companies"]:
+        df[col] = df[col].str.lower().str.strip()
+    _save_data(df, "cleaned_data.parquet")
     context["ti"].xcom_push(key="row", value=f"Total rows cleaned: {row_count}")
     print(f"Total rows cleaned: {row_count}")
 
 def feature_data(**context) -> None:
     df = _read_data("cleaned_data.parquet")
+    df = df[["genres","budget", "popularity", "revenue", "runtime", "vote_average", "vote_count"]]
     _save_data(df, "featured_data.parquet")
     row_count = len(df)
     context["ti"].xcom_push(key="row", value=f"Total rows featured: {row_count}")
