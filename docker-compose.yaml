@@ -71,7 +71,7 @@ services:
     container_name: superset_app
     restart: unless-stopped
     depends_on:
-      db-superset:               # ← su propio Postgres
+      db-superset: 
         condition: service_healthy
       superset_redis:
         condition: service_started
@@ -94,7 +94,6 @@ services:
             superset run -h 0.0.0.0 -p 8088
         "
 
-  # ✅ Postgres dedicado para Superset (separado del de Airflow)
   db-superset:
     image: postgres:16-alpine
     container_name: db-superset
