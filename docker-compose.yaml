@@ -71,17 +71,17 @@ services:
     container_name: superset_app
     restart: unless-stopped
     depends_on:
-      db-superset: 
+      db-superset:
         condition: service_healthy
       superset_redis:
         condition: service_started
     environment:
       SUPERSET_SECRET_KEY: "super-secret-key-change-me"
-      # ✅ Variable correcta para la BD de metadatos
       SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@db-superset/superset"
-      # ✅ Variable correcta para Redis
       REDIS_URL: "redis://superset_redis:6379/0"
       SUPERSET_LOAD_EXAMPLES: "no"
+      CACHE_REDIS_URL: "redis://superset_redis:6379/0"
+      CELERY_BROKER_URL: "redis://superset_redis:6379/0"
     ports:
       - "8088:8088"
     volumes:
@@ -119,8 +119,8 @@ services:
       - superset_redis_data:/data
 
 volumes:
-  superset_redis_data:
-  superset_home:
+  superset_redis_data: {}
+  superset_home: {}
   airflow-postgres_data: {}
   superset-postgres_data: {}
   datalake: {}
