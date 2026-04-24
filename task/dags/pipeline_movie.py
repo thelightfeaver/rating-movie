@@ -113,7 +113,6 @@ def get_movies_id(page:int = 1) -> pd.DataFrame:
     df = _parse_gzip_json(content)
     return df
 
-
 def get_movie_by_id(movie_id: str) -> pd.DataFrame:
     url = _base_url(f"movie/{movie_id}?language=en-US")
     headers = _get_headers()
@@ -123,7 +122,6 @@ def get_movie_by_id(movie_id: str) -> pd.DataFrame:
     data = response.json()
     out_data = _transform_data_movie(data)
     return out_data
-
 
 def dataframe_to_csv(df: pd.DataFrame, filename: str) -> None:
     df.to_csv(filename, index=False)
