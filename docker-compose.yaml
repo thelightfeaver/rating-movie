@@ -78,18 +78,19 @@ services:
     environment:
       SUPERSET_SECRET_KEY: "super-secret-key-change-me"
       SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@db-superset/superset"
-      REDIS_URL: "redis://superset_redis:6379/0"
-      SUPERSET_LOAD_EXAMPLES: "no"
       CACHE_REDIS_URL: "redis://superset_redis:6379/0"
       CELERY_BROKER_URL: "redis://superset_redis:6379/0"
+      REDIS_URL: "redis://superset_redis:6379/0"
       PREVENT_UNSAFE_DB_CONNECTIONS: false
       SQLLAB_BACKEND_PERSISTENCE: true
+      SUPERSET_LOAD_EXAMPLES: "no"
     ports:
       - "8088:8088"
     volumes:
       - superset_home:/app/superset_home
     command: >
         /bin/bash -c "
+            pip install duckdb duckdb-engine &&
             superset db upgrade &&
             superset fab create-admin --username admin --firstname Superset --lastname Admin --email admin@superset.com --password admin &&
             superset init &&

@@ -7,11 +7,14 @@ from datetime import datetime
 from io import BytesIO
 
 import boto3
+import duckdb
 import pandas as pd
+import psycopg2
 import requests
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from dotenv import load_dotenv
+from psycopg2.extras import execute_values
 
 load_dotenv()
 API = os.getenv("API")
@@ -21,6 +24,22 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 TMDB_FILE_URL = os.getenv("TMDB_FILE_URL")
+
+MINIO = {
+    "endpoint": S3_ENDPOINT_URL,
+    "access_key": AWS_ACCESS_KEY_ID,
+    "secret_key":AWS_SECRET_ACCESS_KEY,
+    "bucket": S3_BUCKET_NAME
+}
+
+POSTGRES_CONFIG = {
+    "host": "db-superset",
+    "port": 5432,
+    "dbname": "superset",
+    "user": "superset",
+    "password": "superset"
+}
+
 
 
 def _get_client_s3():
@@ -124,7 +143,7 @@ def recollect_data(**context) -> pd.DataFrame:
     # Limitar a 100,000 IDs para evitar problemas de memoria y tiempo de ejecución
     id_movies = get_movies_id()
     id_movies = id_movies[["id"]]
-    id_movies = id_movies.iloc[:100000]
+    id_movies = id_movies.iloc[:100]
     counter = 0
     counter_error = 0
     len_id_movies = len(id_movies)
@@ -231,6 +250,60 @@ def validation_feature_data() -> None:
     assert set(df.columns) == expected_columns, f"Featured data does not have the expected columns. Expected: {expected_columns}, Found: {set(df.columns)}"
     print("Featured data validation passed.")
 
+def load_database():
+    con = duckdb.connect()
+
+    con.execute("INSTALL httpfs;")
+    con.execute("LOAD httpfs;")
+
+    con.execute(f"""
+        SET s3_endpoint='{MINIO["endpoint"]}';
+        SET s3_access_key_id='{MINIO["access_key"]}';
+        SET s3_secret_access_key='{MINIO["secret_key"]}';
+        SET s3_url_style='path';
+    """)
+
+    query = f"""
+        SELECT * FROM read_parquet('s3://{MINIO['bucket']}/cleaned_data.parquet')
+    """
+
+    df = con.execute(query).df()
+
+    conn = psycopg2.connect(**POSTGRES_CONFIG)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS data (
+            title TEXT,
+            overview TEXT,
+            release_date DATE,
+            vote_average DOUBLE PRECISION,
+            vote_count INTEGER,
+            popularity DOUBLE PRECISION,
+            runtime INTEGER,
+            revenue BIGINT,
+            original_language TEXT,
+            genres TEXT,
+            budget BIGINT,
+            production_companies TEXT
+        );
+    """)
+
+    columns = list(df.columns)
+    insert_query = f"""
+        INSERT INTO data ({', '.join(columns)})
+        VALUES %s
+    """
+
+    data_tuples = list(df.itertuples(index=False, name=None))
+
+    execute_values(cursor, insert_query, data_tuples)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
 # Versionar el bucket de S3 para mantener un historial de cambios en los datos
 s3 = _get_client_s3()
 _create_bucket_s3(s3, S3_BUCKET_NAME)
@@ -271,6 +344,11 @@ with DAG(
         python_callable=validation_feature_data,
     )
 
-    extract_data >> clean_data >> validation_clean >> feature_data >> validation_feature
+    load = PythonOperator(
+        task_id="load",
+        python_callable=load_database
+    )
+
+    extract_data >> clean_data >> validation_clean >> feature_data >> validation_feature >> load
 
 
