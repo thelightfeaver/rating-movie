@@ -250,7 +250,7 @@ def validation_feature_data() -> None:
     assert set(df.columns) == expected_columns, f"Featured data does not have the expected columns. Expected: {expected_columns}, Found: {set(df.columns)}"
     print("Featured data validation passed.")
 
-def load_database():
+def load_database() -> None:
     con = duckdb.connect()
 
     con.execute("INSTALL httpfs;")
