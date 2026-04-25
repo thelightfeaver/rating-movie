@@ -9,6 +9,7 @@ from io import BytesIO
 import boto3
 import duckdb
 import pandas as pd
+import psutil
 import psycopg2
 import requests
 from airflow import DAG
@@ -24,6 +25,7 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 TMDB_FILE_URL = os.getenv("TMDB_FILE_URL")
+BATCH_FOLDER = os.getenv("BATCH_FOLDER", "batches")
 
 MINIO = {
     "endpoint": "host.docker.internal:9000",
@@ -39,10 +41,6 @@ POSTGRES_CONFIG = {
     "user": "superset",
     "password": "superset"
 }
-
-BATCH_SIZE = 500  # Procesar en batches de 500 registros
-
-
 
 
 def _get_client_s3():
@@ -144,30 +142,65 @@ def _read_data(filename: str) -> pd.DataFrame:
     obj = s3.Object(S3_BUCKET_NAME, filename)
     return pd.read_parquet(BytesIO(obj.get()["Body"].read()))
 
-def _append_batch_data(batch_df: pd.DataFrame, target_file: str) -> None:
-    """Agregar batch a archivo existente o crear nuevo."""
-    if _exist_file(target_file):
-        existing_df = _read_data(target_file)
-        batch_df = pd.concat([existing_df, batch_df], ignore_index=True)
-    _save_data(batch_df, target_file)
-
 def _process_batch(batch_movies: list) -> pd.DataFrame:
     """Convertir lista de dicts a DataFrame."""
     if not batch_movies:
         return pd.DataFrame()
     return pd.DataFrame(batch_movies)
 
-def recollect_data(**context) -> pd.DataFrame:
-    """Recolectar películas con batching para grandes volúmenes."""
+def _get_adaptive_batch_size() -> int:
+    """Tamaño batch basado en memoria disponible. Max 2GB → 500, Min 512MB → 100."""
+    mem_available_mb = psutil.virtual_memory().available / 1024 / 1024
+    batch_size = max(100, min(1000, int(mem_available_mb / 5)))  # 1 registro ≈ 5KB
+    return batch_size
+
+def _save_batch_to_minio(batch_df: pd.DataFrame, batch_num: int) -> str:
+    """Guardar batch en MinIO y retornar key."""
+    batch_key = f"{BATCH_FOLDER}/batch_{batch_num:06d}.parquet"
+    s3 = _get_client_s3()
+    bucket = s3.Bucket(S3_BUCKET_NAME)
+    bucket.put_object(Key=batch_key, Body=batch_df.to_parquet(index=False), ContentType="application/octet-stream")
+    return batch_key
+
+def _merge_and_cleanup_batches() -> None:
+    """Reunir todos batches, guardar en raw_data.parquet, limpiar batches."""
+    s3 = _get_client_s3()
+    bucket = s3.Bucket(S3_BUCKET_NAME)
+
+    batch_keys = [obj.key for obj in bucket.objects.all() if obj.key.startswith(BATCH_FOLDER)]
+    if not batch_keys:
+        print(f"No batches en {BATCH_FOLDER}")
+        return
+    
+    print(f"Reuniendo {len(batch_keys)} batches...")
+    all_dfs = []
+    
+    for batch_key in sorted(batch_keys):
+        obj = s3.Object(S3_BUCKET_NAME, batch_key)
+        df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
+        all_dfs.append(df)
+    
+    merged_df = pd.concat(all_dfs, ignore_index=True)
+    _save_data(merged_df, "raw_data.parquet")
+    print(f"Guardado: raw_data.parquet ({len(merged_df)} filas)")
+    
+    # Limpiar batches
+    for batch_key in batch_keys:
+        s3.Object(S3_BUCKET_NAME, batch_key).delete()
+    print(f"Limpiados {len(batch_keys)} batches")
+
+def recollect_data(**context) -> None:
+    """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:10000]  # Limitar a 1000 para demo
+    id_movies = id_movies[:300000]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
     batch_count = 0
-
+    
+    batch_size = _get_adaptive_batch_size()
     print(f"Total movie IDs: {total_movies}")
-    print(f"Batch size: {BATCH_SIZE}")
+    print(f"Batch size adaptativo: {batch_size}")
 
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=25) as executor:
@@ -179,14 +212,15 @@ def recollect_data(**context) -> pd.DataFrame:
             if result is not None:
                 movies_batch.append(result)
 
-            # Procesar batch cuando alcanza BATCH_SIZE o es el último
-            if len(movies_batch) >= BATCH_SIZE or i == total_movies:
+            # Procesar batch cuando alcanza batch_size o es el último
+            if len(movies_batch) >= batch_size or i == total_movies:
                 if movies_batch:
                     batch_df = _process_batch(movies_batch)
-                    _append_batch_data(batch_df, "raw_data.parquet")
+                    batch_num = batch_count + 1
+                    batch_key = _save_batch_to_minio(batch_df, batch_num)
                     batch_count += 1
                     total_rows += len(batch_df)
-                    print(f"Batch {batch_count}: {len(batch_df)} registros (Total: {total_rows})")
+                    print(f"Batch {batch_num}: {len(batch_df)} filas → {batch_key}")
                     movies_batch = []
 
             # Rate limit
@@ -200,8 +234,11 @@ def recollect_data(**context) -> pd.DataFrame:
             if i % progress_step == 0 or i == total_movies:
                 print(f"Procesados: {i}/{total_movies} ({i*100//total_movies}%)")
 
+    # Reunir todos batches en raw_data.parquet y limpiar
+    _merge_and_cleanup_batches()
+    
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {total_rows}")
-    print(f"Total batches: {batch_count}")
+    print(f"Total batches procesados: {batch_count}")
     print(f"Total rows collected: {total_rows}")
     print("Data recollected and saved successfully.")
 
