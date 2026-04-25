@@ -85,9 +85,7 @@ def download_tmdb_export(url: str) -> bytes:
     return response.content
 
 def _transform_data_movie(data: dict) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
+    return {
                 "id": data["id"],
                 "title": data["original_title"],
                 "overview": data["overview"],
@@ -104,24 +102,30 @@ def _transform_data_movie(data: dict) -> pd.DataFrame:
                     out["name"] for out in data["production_companies"]
                 ),
             }
-        ]
-    )
+
 
 def get_movies_id() -> pd.DataFrame:
     url = _get_url_today_filename()
     content = download_tmdb_export(url)
     df = _parse_gzip_json(content)
-    return df
+    return df["id"].tolist()
 
 def get_movie_by_id(movie_id: str) -> pd.DataFrame:
     url = _base_url(f"movie/{movie_id}?language=en-US")
     headers = _get_headers()
-    response = requests.get(url, headers=headers)
-    response.encoding = "utf-8"
-    response.raise_for_status()
-    data = response.json()
-    out_data = _transform_data_movie(data)
-    return out_data
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.encoding = "utf-8"
+        if response.status_code == 429:
+            time.sleep(10)
+            return None
+        
+        data = response.json()
+        out_data = _transform_data_movie(data)
+        return out_data
+    except Exception as _:
+        return None
 
 def dataframe_to_csv(df: pd.DataFrame, filename: str) -> None:
     df.to_csv(filename, index=False)
@@ -140,11 +144,9 @@ def _read_data(filename: str) -> pd.DataFrame:
 def recollect_data(**context) -> pd.DataFrame:
     # Limitar a 100,000 IDs para evitar problemas de memoria y tiempo de ejecución
     id_movies = get_movies_id()
-    id_movies = id_movies[["id"]]
-    # id_movies = id_movies.iloc[:100]
+    id_movies = id_movies[:100]
     counter = 0
-    counter_error = 0
-    len_id_movies = len(id_movies)
+    total_movies = len(id_movies)
     movies = []
 
     print(f"Total movie IDs fetched: {len(id_movies)}")
@@ -152,7 +154,7 @@ def recollect_data(**context) -> pd.DataFrame:
     # Usar ThreadPoolExecutor para hacer solicitudes concurrentes y limitar la tasa a 10 por segundo
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=25) as executor:
-        futures = {executor.submit(get_movie_by_id, movie_id): movie_id for movie_id in id_movies["id"].to_list()}
+        futures = {executor.submit(get_movie_by_id, id): id for id in id_movies}
 
         for i, future in enumerate(as_completed(futures), start=1):
             # Obtenemos el resultado de la solicitud
@@ -169,30 +171,32 @@ def recollect_data(**context) -> pd.DataFrame:
                     time.sleep(1 - elapsed)
                 start_time = time.time()
 
-            if i % (len_id_movies // 10) == 0:
-                print(f"Procesados: {i}/{len_id_movies} ({i*100//len_id_movies}%)")
+            progress_step = max(1, total_movies // 10)
+            if i % progress_step == 0 or i == total_movies:
+                print(f"Procesados: {i}/{total_movies} ({i*100//total_movies}%)")
 
-    # Contar el número de filas en el DataFrame resultante
-    row_count = len(movies)
+    movies = pd.DataFrame(movies)
 
     # Si no se han recolectado películas, retornar un DataFrame vacío
-    if not movies:
+    if movies.empty:
         return pd.DataFrame()
 
     # Si ya existe un archivo Parquet con datos anteriores, cargarlo y concatenarlo con los nuevos datos
     if _exist_file("raw_data.parquet"):
         existing_df = _read_data("raw_data.parquet")
-        movies.append(existing_df)
+        df = pd.concat([movies, existing_df], ignore_index=True)
+    else:
+        df = movies
 
-    # Concatenar todos los DataFrames de películas en uno solo
-    df = pd.concat(movies, ignore_index=True)
+    if df.empty:
+        return pd.DataFrame()
+
+    row_count = len(df)
 
     # Guardar el DataFrame en S3 como un archivo Parquet
     _save_data(df, "raw_data.parquet")
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
     print(f"Total rows collected: {row_count}")
-    print(f"Total errors encountered: {counter_error}")
-    print(f"Total successful fetches: {counter - counter_error}")
     print("Data recollected and saved successfully.")
 
 def clean_data(**context) -> None:
@@ -267,7 +271,7 @@ def load_database() -> None:
     """)
 
     query = f"""
-        SELECT * FROM 's3://{MINIO['bucket']}/cleaned_data.parquet'
+        SELECT * FROM read_parquet('s3://{MINIO['bucket']}/cleaned_data.parquet')
     """
 
     df = con.execute(query).df()
