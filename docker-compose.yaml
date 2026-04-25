@@ -67,7 +67,10 @@ services:
     restart: always
 
   superset:
-    image: apache/superset:latest
+    # image: apache/superset:latest
+    build:
+      context: .
+      dockerfile: dockerfile.superset
     container_name: superset
     restart: unless-stopped
     depends_on:
