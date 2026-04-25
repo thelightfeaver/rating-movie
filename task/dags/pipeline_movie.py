@@ -169,7 +169,8 @@ def recollect_data(**context) -> pd.DataFrame:
                     time.sleep(1 - elapsed)
                 start_time = time.time()
 
-            print(f"Procesados: {i}/{len_id_movies}")
+            if i % (len_id_movies // 10) == 0:
+                print(f"Procesados: {i}/{len_id_movies} ({i*100//len_id_movies}%)")
 
     # Contar el número de filas en el DataFrame resultante
     row_count = len(movies)
