@@ -216,7 +216,7 @@ def _merge_and_cleanup_batches() -> None:
 def recollect_data(**context) -> None:
     """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:100]
+    id_movies = id_movies[:100000]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
