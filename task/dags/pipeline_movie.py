@@ -107,7 +107,7 @@ def _transform_data_movie(data: dict) -> pd.DataFrame:
         ]
     )
 
-def get_movies_id(page:int = 1) -> pd.DataFrame:
+def get_movies_id() -> pd.DataFrame:
     url = _get_url_today_filename()
     content = download_tmdb_export(url)
     df = _parse_gzip_json(content)
