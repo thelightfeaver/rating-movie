@@ -90,7 +90,7 @@ services:
       - superset_home:/app/superset_home
     command: >
         /bin/bash -c "
-            pip install duckdb duckdb-engine &&
+            pip install duckdb duckdb-engine psycopg2-binary &&
             superset db upgrade &&
             superset fab create-admin --username admin --firstname Superset --lastname Admin --email admin@superset.com --password admin &&
             superset init &&
