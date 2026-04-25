@@ -141,7 +141,7 @@ def recollect_data(**context) -> pd.DataFrame:
     # Limitar a 100,000 IDs para evitar problemas de memoria y tiempo de ejecución
     id_movies = get_movies_id()
     id_movies = id_movies[["id"]]
-    id_movies = id_movies.iloc[:100]
+    # id_movies = id_movies.iloc[:100]
     counter = 0
     counter_error = 0
     len_id_movies = len(id_movies)
