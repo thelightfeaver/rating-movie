@@ -40,6 +40,9 @@ POSTGRES_CONFIG = {
     "password": "superset"
 }
 
+BATCH_SIZE = 500  # Procesar en batches de 500 registros
+
+
 
 
 def _get_client_s3():
@@ -141,30 +144,52 @@ def _read_data(filename: str) -> pd.DataFrame:
     obj = s3.Object(S3_BUCKET_NAME, filename)
     return pd.read_parquet(BytesIO(obj.get()["Body"].read()))
 
+def _append_batch_data(batch_df: pd.DataFrame, target_file: str) -> None:
+    """Agregar batch a archivo existente o crear nuevo."""
+    if _exist_file(target_file):
+        existing_df = _read_data(target_file)
+        batch_df = pd.concat([existing_df, batch_df], ignore_index=True)
+    _save_data(batch_df, target_file)
+
+def _process_batch(batch_movies: list) -> pd.DataFrame:
+    """Convertir lista de dicts a DataFrame."""
+    if not batch_movies:
+        return pd.DataFrame()
+    return pd.DataFrame(batch_movies)
+
 def recollect_data(**context) -> pd.DataFrame:
-    # Limitar a 100,000 IDs para evitar problemas de memoria y tiempo de ejecución
+    """Recolectar películas con batching para grandes volúmenes."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:100]
-    counter = 0
+    id_movies = id_movies[:10000]  # Limitar a 1000 para demo
     total_movies = len(id_movies)
-    movies = []
+    movies_batch = []
+    total_rows = 0
+    batch_count = 0
 
-    print(f"Total movie IDs fetched: {len(id_movies)}")
+    print(f"Total movie IDs: {total_movies}")
+    print(f"Batch size: {BATCH_SIZE}")
 
-    # Usar ThreadPoolExecutor para hacer solicitudes concurrentes y limitar la tasa a 10 por segundo
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=25) as executor:
         futures = {executor.submit(get_movie_by_id, id): id for id in id_movies}
 
         for i, future in enumerate(as_completed(futures), start=1):
-            # Obtenemos el resultado de la solicitud
             result = future.result()
 
-            # validar que el resultado no sea None antes de agregarlo a la lista de películas
             if result is not None:
-                movies.append(result)
+                movies_batch.append(result)
 
-            # Limitar la tasa de solicitudes a 10 por segundo
+            # Procesar batch cuando alcanza BATCH_SIZE o es el último
+            if len(movies_batch) >= BATCH_SIZE or i == total_movies:
+                if movies_batch:
+                    batch_df = _process_batch(movies_batch)
+                    _append_batch_data(batch_df, "raw_data.parquet")
+                    batch_count += 1
+                    total_rows += len(batch_df)
+                    print(f"Batch {batch_count}: {len(batch_df)} registros (Total: {total_rows})")
+                    movies_batch = []
+
+            # Rate limit
             if i % 40 == 0:
                 elapsed = time.time() - start_time
                 if elapsed < 1:
@@ -175,28 +200,9 @@ def recollect_data(**context) -> pd.DataFrame:
             if i % progress_step == 0 or i == total_movies:
                 print(f"Procesados: {i}/{total_movies} ({i*100//total_movies}%)")
 
-    movies = pd.DataFrame(movies)
-
-    # Si no se han recolectado películas, retornar un DataFrame vacío
-    if movies.empty:
-        return pd.DataFrame()
-
-    # Si ya existe un archivo Parquet con datos anteriores, cargarlo y concatenarlo con los nuevos datos
-    if _exist_file("raw_data.parquet"):
-        existing_df = _read_data("raw_data.parquet")
-        df = pd.concat([movies, existing_df], ignore_index=True)
-    else:
-        df = movies
-
-    if df.empty:
-        return pd.DataFrame()
-
-    row_count = len(df)
-
-    # Guardar el DataFrame en S3 como un archivo Parquet
-    _save_data(df, "raw_data.parquet")
-    context["ti"].xcom_push(key="row", value=f"Total rows collected: {row_count}")
-    print(f"Total rows collected: {row_count}")
+    context["ti"].xcom_push(key="row", value=f"Total rows collected: {total_rows}")
+    print(f"Total batches: {batch_count}")
+    print(f"Total rows collected: {total_rows}")
     print("Data recollected and saved successfully.")
 
 def clean_data(**context) -> None:
