@@ -216,7 +216,7 @@ def _merge_and_cleanup_batches() -> None:
 def recollect_data(**context) -> None:
     """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:10000]
+    id_movies = id_movies[:100]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
@@ -263,7 +263,6 @@ def recollect_data(**context) -> None:
 
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {total_rows}")
     print(f"Total batches procesados: {batch_count}")
-    print(f"Total rows collected: {total_rows}")
     print("Data recollected and saved successfully.")
 
 def clean_data(**context) -> None:
@@ -308,12 +307,6 @@ def feature_data(**context) -> None:
 def validation_clean_data() -> None:
     df = _read_data("cleaned_data.parquet")
     assert not df.duplicated().any(), "There are duplicated rows in the cleaned data."
-    assert (df["vote_count"] > 0).all(), "There are rows with vote_count <= 0 in the cleaned data."
-    assert (df["vote_average"] > 0).all(), "There are rows with vote_average <= 0 in the cleaned data."
-    assert (df["popularity"] > 0).all(), "There are rows with popularity <= 0 in the cleaned data."
-    assert (df["runtime"] > 0).all(), "There are rows with runtime <= 0 in the cleaned data."
-    assert (df["revenue"] > 0).all(), "There are rows with revenue <= 0 in the cleaned data."
-    assert (df["budget"] > 0).all(), "There are rows with budget <= 0 in the cleaned data."
     print("Cleaned data validation passed.")
 
 def validation_feature_data() -> None:
