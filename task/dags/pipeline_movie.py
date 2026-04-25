@@ -222,7 +222,7 @@ def recollect_data(**context) -> None:
     total_rows = 0
     batch_count = 0
 
-    batch_size = get_batch_size(total_movies)
+    batch_size = 500
     print(f"Total movie IDs: {total_movies}")
     print(f"Batch size adaptativo: {batch_size}")
 
