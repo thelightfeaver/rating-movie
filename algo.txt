@@ -1,1 +1,2 @@
 docker exec airflow sh -lc 'cat /opt/airflow/simple_auth_manager_passwords.json.generated'
+postgresql://superset:superset@db-superset:5432/superset
