@@ -3,7 +3,7 @@ import json
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 import boto3
@@ -26,7 +26,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 TMDB_FILE_URL = os.getenv("TMDB_FILE_URL")
 
 MINIO = {
-    "endpoint": S3_ENDPOINT_URL,
+    "endpoint": "host.docker.internal:9000",
     "access_key": AWS_ACCESS_KEY_ID,
     "secret_key":AWS_SECRET_ACCESS_KEY,
     "bucket": S3_BUCKET_NAME
@@ -63,7 +63,7 @@ def _exist_file(filename: str) -> bool:
     return any(obj.key == filename for obj in bucket.objects.all())
 
 def _get_url_today_filename() -> str:
-    today = datetime.now().strftime("%m_%d_%Y")
+    today = (datetime.now() - timedelta(days=1)).strftime("%m_%d_%Y")
     return f"{TMDB_FILE_URL}/movie_ids_{today}.json.gz"
 
 def _get_headers() -> dict:
@@ -199,6 +199,9 @@ def clean_data(**context) -> None:
 
     # Eliminar duplicada y datos inrevelevantes
     df.drop_duplicates(inplace=True)
+    df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
+    df.dropna(inplace=True)
+    df = df[df['release_date'].notna()]
     df = df[(df["vote_count"] > 0) & (df["vote_average"] > 0) & (df["popularity"] > 0) & (df["runtime"] > 0) & (df["revenue"] > 0) & (df["budget"] > 0)]
     df.drop(columns=["id"], inplace=True)
     for col in ["title", "overview", "original_language", "genres", "production_companies"]:
@@ -258,11 +261,12 @@ def load_database() -> None:
         SET s3_endpoint='{MINIO["endpoint"]}';
         SET s3_access_key_id='{MINIO["access_key"]}';
         SET s3_secret_access_key='{MINIO["secret_key"]}';
+        SET s3_use_ssl=false;
         SET s3_url_style='path';
     """)
 
     query = f"""
-        SELECT * FROM read_parquet('s3://{MINIO['bucket']}/cleaned_data.parquet')
+        SELECT * FROM 's3://{MINIO['bucket']}/cleaned_data.parquet'
     """
 
     df = con.execute(query).df()
@@ -348,5 +352,3 @@ with DAG(
     )
 
     extract_data >> clean_data >> validation_clean >> feature_data >> validation_feature >> load
-
-
