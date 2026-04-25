@@ -15,7 +15,7 @@ services:
       - ./task:/opt/airflow/task
     ports:
       - "8080:8080"
-    command: bash -c "airflow standalone"
+    command: bash -c "pip install duckdb duckdb-engine psycopg2-binary && airflow standalone"
     depends_on:
       db-airflow:
         condition: service_healthy
@@ -76,21 +76,21 @@ services:
       superset_redis:
         condition: service_started
     environment:
-      SUPERSET_SECRET_KEY: "super-secret-key-change-me"
-      SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@db-superset/superset"
-      CACHE_REDIS_URL: "redis://superset_redis:6379/0"
-      CELERY_BROKER_URL: "redis://superset_redis:6379/0"
-      REDIS_URL: "redis://superset_redis:6379/0"
-      PREVENT_UNSAFE_DB_CONNECTIONS: false
-      SQLLAB_BACKEND_PERSISTENCE: true
-      SUPERSET_LOAD_EXAMPLES: "no"
+      - EXTRA_PIP_PACKAGES: "psycopg2-binary"
+      - SUPERSET_SECRET_KEY: "super-secret-key-change-me"
+      - SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@db-superset/superset"
+      - CACHE_REDIS_URL: "redis://superset_redis:6379/0"
+      - CELERY_BROKER_URL: "redis://superset_redis:6379/0"
+      - REDIS_URL: "redis://superset_redis:6379/0"
+      - PREVENT_UNSAFE_DB_CONNECTIONS: false
+      - SQLLAB_BACKEND_PERSISTENCE: true
+      - SUPERSET_LOAD_EXAMPLES: "no"
     ports:
       - "8088:8088"
     volumes:
       - superset_home:/app/superset_home
     command: >
         /bin/bash -c "
-            pip install duckdb duckdb-engine psycopg2-binary &&
             superset db upgrade &&
             superset fab create-admin --username admin --firstname Superset --lastname Admin --email admin@superset.com --password admin &&
             superset init &&
