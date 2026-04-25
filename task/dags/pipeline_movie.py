@@ -236,7 +236,7 @@ def recollect_data(**context) -> None:
 
     # Reunir todos batches en raw_data.parquet y limpiar
     _merge_and_cleanup_batches()
-    
+
     context["ti"].xcom_push(key="row", value=f"Total rows collected: {total_rows}")
     print(f"Total batches procesados: {batch_count}")
     print(f"Total rows collected: {total_rows}")
@@ -248,9 +248,8 @@ def clean_data(**context) -> None:
     # Eliminar duplicada y datos inrevelevantes
     df = df.drop_duplicates(subset='id')
     df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
-    df.dropna(inplace=True)
     df = df[df['release_date'].notna()]
-    df = df[(df["vote_count"] > 0) & (df["vote_average"] > 0) & (df["popularity"] > 0) & (df["runtime"] > 0) & (df["revenue"] > 0) & (df["budget"] > 0)]
+    df.dropna(inplace=True)
     df.drop(columns=["id"], inplace=True)
     for col in ["title", "overview", "original_language", "genres", "production_companies"]:
         df[col] = df[col].str.lower()
