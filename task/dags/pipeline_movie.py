@@ -1,15 +1,16 @@
 import gzip
 import json
+import math
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from io import BytesIO
+from typing import Final
 
 import boto3
 import duckdb
 import pandas as pd
-import psutil
 import psycopg2
 import requests
 from airflow import DAG
@@ -41,6 +42,9 @@ POSTGRES_CONFIG = {
     "user": "superset",
     "password": "superset"
 }
+
+_MIN_BATCH: Final[int] = 1
+_MAX_BATCH: Final[int] = 10_000
 
 
 def _get_client_s3():
@@ -148,11 +152,31 @@ def _process_batch(batch_movies: list) -> pd.DataFrame:
         return pd.DataFrame()
     return pd.DataFrame(batch_movies)
 
-def _get_adaptive_batch_size() -> int:
-    """Tamaño batch basado en memoria disponible. Max 2GB → 500, Min 512MB → 100."""
-    mem_available_mb = psutil.virtual_memory().available / 1024 / 1024
-    batch_size = max(100, min(1000, int(mem_available_mb / 5)))  # 1 registro ≈ 5KB
-    return batch_size
+def get_batch_size(total_records: int) -> int:
+    """
+    Retorna batch size óptimo según cantidad de registros.
+    Usa escala logarítmica (log10) para crecer rápido en volúmenes
+    bajos y estabilizarse en volúmenes altos. Nunca retorna 0.
+
+    Args:
+        total_records: Entero no negativo con el total de registros.
+
+    Returns:
+        Batch size entre MIN_BATCH y MAX_BATCH (nunca 0).
+
+    Raises:
+        TypeError:  si total_records no es int.
+        ValueError: si total_records es negativo.
+    """
+    if not isinstance(total_records, int):
+        raise TypeError(f"total_records debe ser int, recibido: {type(total_records).__name__}")
+    if total_records < 0:
+        raise ValueError(f"total_records debe ser >= 0, recibido: {total_records}")
+    if total_records == 0:
+        return _MIN_BATCH
+
+    raw = int(10 * math.log10(total_records + 1))
+    return max(_MIN_BATCH, min(_MAX_BATCH, raw))
 
 def _save_batch_to_minio(batch_df: pd.DataFrame, batch_num: int) -> str:
     """Guardar batch en MinIO y retornar key."""
@@ -192,13 +216,13 @@ def _merge_and_cleanup_batches() -> None:
 def recollect_data(**context) -> None:
     """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:300000]
+    id_movies = id_movies[:10000]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
     batch_count = 0
 
-    batch_size = _get_adaptive_batch_size()
+    batch_size = get_batch_size(total_movies)
     print(f"Total movie IDs: {total_movies}")
     print(f"Batch size adaptativo: {batch_size}")
 
