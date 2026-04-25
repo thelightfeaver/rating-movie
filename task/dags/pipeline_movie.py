@@ -171,19 +171,19 @@ def _merge_and_cleanup_batches() -> None:
     if not batch_keys:
         print(f"No batches en {BATCH_FOLDER}")
         return
-    
+
     print(f"Reuniendo {len(batch_keys)} batches...")
     all_dfs = []
-    
+
     for batch_key in sorted(batch_keys):
         obj = s3.Object(S3_BUCKET_NAME, batch_key)
         df = pd.read_parquet(BytesIO(obj.get()["Body"].read()))
         all_dfs.append(df)
-    
+
     merged_df = pd.concat(all_dfs, ignore_index=True)
     _save_data(merged_df, "raw_data.parquet")
     print(f"Guardado: raw_data.parquet ({len(merged_df)} filas)")
-    
+
     # Limpiar batches
     for batch_key in batch_keys:
         s3.Object(S3_BUCKET_NAME, batch_key).delete()
@@ -197,7 +197,7 @@ def recollect_data(**context) -> None:
     movies_batch = []
     total_rows = 0
     batch_count = 0
-    
+
     batch_size = _get_adaptive_batch_size()
     print(f"Total movie IDs: {total_movies}")
     print(f"Batch size adaptativo: {batch_size}")
