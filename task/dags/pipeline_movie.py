@@ -198,7 +198,7 @@ def clean_data(**context) -> None:
     df = _read_data("raw_data.parquet")
 
     # Eliminar duplicada y datos inrevelevantes
-    df.drop_duplicates(inplace=True)
+    df = df.drop_duplicates(subset='id')
     df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
     df.dropna(inplace=True)
     df = df[df['release_date'].notna()]
