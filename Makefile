@@ -34,11 +34,8 @@ test:
 
 ## Run all
 .PHONY: all
-all: dataset train predict plot
+all: train predict plot
 
-.PHONY: dataset
-dataset:
-	python src/dataset.py
 
 .PHONY: train
 train:

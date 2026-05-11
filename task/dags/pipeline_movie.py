@@ -216,13 +216,13 @@ def _merge_and_cleanup_batches() -> None:
 def recollect_data(**context) -> None:
     """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:100000]
+    id_movies = id_movies[:50000]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
     batch_count = 0
 
-    batch_size = 500
+    batch_size = 10000
     print(f"Total movie IDs: {total_movies}")
     print(f"Batch size adaptativo: {batch_size}")
 
@@ -296,7 +296,7 @@ def feature_data(**context) -> None:
          "runtime",
          "vote_average",
          "vote_count"]]
-
+    df["hit"] = (df["revenue"] > df["budget"] * 2).astype(int)
     # Guardar el DataFrame con las características seleccionadas en S3 como un archivo Parquet
     _save_data(df, "featured_data.parquet")
     row_count = len(df)
@@ -311,7 +311,7 @@ def validation_clean_data() -> None:
 
 def validation_feature_data() -> None:
     df = _read_data("featured_data.parquet")
-    expected_columns = {"genres", "budget", "popularity", "revenue", "runtime", "vote_average", "vote_count"}
+    expected_columns = {"genres", "budget", "popularity", "revenue", "runtime", "vote_average", "vote_count", "hit"}
     assert set(df.columns) == expected_columns, f"Featured data does not have the expected columns. Expected: {expected_columns}, Found: {set(df.columns)}"
     print("Featured data validation passed.")
 
