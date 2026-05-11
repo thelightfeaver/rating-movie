@@ -67,7 +67,6 @@ services:
     restart: always
 
   superset:
-    # image: apache/superset:latest
     build:
       context: .
       dockerfile: dockerfile.superset
