@@ -28,6 +28,11 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 TMDB_FILE_URL = os.getenv("TMDB_FILE_URL")
 BATCH_FOLDER = os.getenv("BATCH_FOLDER", "batches")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5432))
+POSTGRES_DBNAME = os.getenv("POSTGRES_DBNAME")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 
 MINIO = {
     "endpoint": "host.docker.internal:9000",
