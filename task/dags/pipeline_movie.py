@@ -107,7 +107,7 @@ def _transform_data_movie(data: dict) -> pd.DataFrame:
                 "runtime": data["runtime"],
                 "revenue": data["revenue"],
                 "original_language": data["original_language"],
-                "genres": "| ".join(out["name"] for out in data["genres"]),
+                "genre": data["genres"][0]["name"] if data["genres"] else None,
                 "budget": data["budget"],
                 "production_companies": "| ".join(
                     out["name"] for out in data["production_companies"]
@@ -222,7 +222,7 @@ def _merge_and_cleanup_batches() -> None:
 def recollect_data(**context) -> None:
     """Recolectar películas con batching adaptativo. Guardar batches en MinIO."""
     id_movies = get_movies_id()
-    id_movies = id_movies[:50000]
+    # id_movies = id_movies[:10000]
     total_movies = len(id_movies)
     movies_batch = []
     total_rows = 0
@@ -280,7 +280,7 @@ def clean_data(**context) -> None:
     df = df[df['release_date'].notna()]
     df.dropna(inplace=True)
     df.drop(columns=["id"], inplace=True)
-    for col in ["title", "overview", "original_language", "genres", "production_companies"]:
+    for col in ["title", "overview", "original_language", "genre", "production_companies"]:
         df[col] = df[col].str.lower()
 
     # Guardar el DataFrame limpio en S3 como un archivo Parquet
@@ -295,7 +295,7 @@ def feature_data(**context) -> None:
 
     # Seleccionar solo las columnas relevantes para el análisis y modelado
     df = df[
-        ["genres",
+        ["genre",
          "budget",
          "popularity",
          "revenue",
@@ -317,7 +317,7 @@ def validation_clean_data() -> None:
 
 def validation_feature_data() -> None:
     df = _read_data("featured_data.parquet")
-    expected_columns = {"genres", "budget", "popularity", "revenue", "runtime", "vote_average", "vote_count", "hit"}
+    expected_columns = {"genre", "budget", "popularity", "revenue", "runtime", "vote_average", "vote_count", "hit"}
     assert set(df.columns) == expected_columns, f"Featured data does not have the expected columns. Expected: {expected_columns}, Found: {set(df.columns)}"
     print("Featured data validation passed.")
 
@@ -355,7 +355,7 @@ def load_database() -> None:
             runtime INTEGER,
             revenue BIGINT,
             original_language TEXT,
-            genres TEXT,
+            genre TEXT,
             budget BIGINT,
             production_companies TEXT
         );
