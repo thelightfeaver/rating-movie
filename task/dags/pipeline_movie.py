@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
 load_dotenv()
+
 API = os.getenv("API")
 TMDB_API_TOKEN = os.getenv("TMDB_API_TOKEN")
 S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")

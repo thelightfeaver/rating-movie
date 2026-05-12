@@ -30,7 +30,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 MINIO = {
-    "endpoint": "host.docker.internal:9000",
+    "endpoint": "localhost:9000",
     "access_key": AWS_ACCESS_KEY_ID,
     "secret_key": AWS_SECRET_ACCESS_KEY,
     "bucket": S3_BUCKET_NAME,
